@@ -1,9 +1,8 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using Controllers;
 using Models;
+using Screens;
 using UnityEngine;
+using Views;
 
 namespace Managers
 {
@@ -18,7 +17,44 @@ namespace Managers
 
         private void Start()
         {
-            Setup();
+            Subscribe();
+        }
+
+        private void OnDestroy()
+        {
+            Unsubscribe();
+        }
+
+        private void Subscribe()
+        {
+            GameScreen.StartGameAction += OnStartGame;
+            TimerView.EndTimeAction += OnEndTime;
+        }
+
+        private void Unsubscribe()
+        {
+            GameScreen.StartGameAction -= OnStartGame;
+            TimerView.EndTimeAction -= OnEndTime;
+        }
+
+        private void OnEndTime()
+        {
+            UIManager.Instance.GetScreen<WinScreen>().Setup(Player.CollectedCoin);
+            Player.WinState();
+        }
+
+        private void OnStartGame()
+        {
+            if (Player)
+            {
+                Player.ResetState();
+                obstacleSpawner.ResetSpawner();
+                coinSpawner.ResetSpawner();
+            }
+            else
+            {
+                Setup();
+            }
         }
 
         private void Setup()
@@ -32,10 +68,6 @@ namespace Managers
         private void SetupCoinSpawner() => coinSpawner.SetupPlayerTransform(Player.transform);
         private void SetupObstacles() => obstacleSpawner.SetPlayerTransform(Player.transform);
         private void SetupCamera() => cameraController.SetPlayerFollow(Player.transform);
-        private void SpawnPlayer()
-        {
-            Player = Instantiate(playerModel,gameObject.transform);
-            //Player.StartRunning();
-        }
+        private void SpawnPlayer() => Player = Instantiate(playerModel,gameObject.transform);
     }
 }

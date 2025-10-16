@@ -1,10 +1,16 @@
+using System.Threading.Tasks;
+using Managers;
+using Screens;
 using UnityEngine;
 
 namespace Models
 {
     public class PlayerModel : MonoBehaviour
     {
+        [SerializeField] private CharacterController controller;
         [SerializeField] private Animator animator;
+        
+        [SerializeField] private Vector3 startPosition;
         
         [Header("Move Settings")] [SerializeField]
         private float forwardSpeed;
@@ -15,25 +21,24 @@ namespace Models
         [Header("Jump / Gravity")] 
         [SerializeField] private float jumpForce;
         [SerializeField] private float gravity;
-
-        private CharacterController _controller;
         
         private Vector3 _moveDirection;
         private Vector2 _touchStart;
+
+        public int CollectedCoin { get; private set; }
         
         private int _currentLane = 1;
         
         private float _verticalVelocity;
       
-        private bool _isSwiping;
-        private bool _isDead = false;
+        private bool isSwiping;
+        private bool isWin = false;
+        private bool isDead = false;
         
         private const float SWIPE_THRESHOLD = 50f;
 
         private void Start()
         {
-            _controller = GetComponent<CharacterController>();
-            
             if (animator == null)
                 Debug.LogWarning("Animator is not assigned on PlayerController.");
 
@@ -44,13 +49,72 @@ namespace Models
             }
         }
 
+        public void ResetState()
+        {
+            isWin = false;
+            CollectedCoin = 0;
+            controller.enabled = false;
+
+            _currentLane = 1;
+            transform.rotation = Quaternion.identity;
+            transform.position = startPosition;
+
+            animator.SetBool("Running", false);
+            animator.SetBool("Death", false);
+
+            if (isDead)
+            {
+                animator.ResetTrigger("Idle");
+                animator.SetTrigger("Idle");
+            }
+
+            isDead = false;
+
+            controller.enabled = true;
+            animator.SetBool("Running", true);
+        }
+
+        public void WinState()
+        {
+            isWin = true;
+            animator.SetTrigger("Idle");
+            animator.SetBool("Running", false);
+            animator.ResetTrigger("Idle");
+            transform.rotation = Quaternion.identity;
+        }
+
         private void Update()
         {
-            if (_isDead) return;
-
+            if (isDead || isWin)
+                return;
+            
             HandleInput();
             MovePlayer();
             UpdateAnimator();
+        }
+        
+        private void OnControllerColliderHit(ControllerColliderHit hit)
+        {
+            if (isDead) 
+                return;
+
+            if (hit.gameObject.CompareTag("Obstacle"))
+            {
+                Die();
+            }
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if(isDead) 
+                return;
+
+            if (other.CompareTag("Coin") && other.TryGetComponent(out CoinModel coin))
+            {
+                CollectedCoin++;
+                coin.CollectedAnimation();
+                coin.AddCoin(); 
+            }
         }
 
         private void HandleInput()
@@ -66,12 +130,12 @@ namespace Models
             if (Input.GetMouseButtonDown(0))
             {
                 _touchStart = Input.mousePosition;
-                _isSwiping = true;
+                isSwiping = true;
             }
-            else if (Input.GetMouseButtonUp(0) && _isSwiping)
+            else if (Input.GetMouseButtonUp(0) && isSwiping)
             {
                 Vector2 delta = (Vector2)Input.mousePosition - _touchStart;
-                _isSwiping = false;
+                isSwiping = false;
                 ProcessSwipe(delta);
             }
 #endif
@@ -82,12 +146,12 @@ namespace Models
                 if (t.phase == TouchPhase.Began)
                 {
                     _touchStart = t.position;
-                    _isSwiping = true;
+                    isSwiping = true;
                 }
-                else if (t.phase == TouchPhase.Ended && _isSwiping)
+                else if (t.phase == TouchPhase.Ended && isSwiping)
                 {
                     Vector2 delta = t.position - _touchStart;
-                    _isSwiping = false;
+                    isSwiping = false;
                     ProcessSwipe(delta);
                 }
             }
@@ -111,7 +175,7 @@ namespace Models
 
         private void MovePlayer()
         {
-            if (_controller.isGrounded)
+            if (controller.isGrounded)
             {
                 if (_verticalVelocity < 0) _verticalVelocity = -1f; 
             }
@@ -127,22 +191,20 @@ namespace Models
             _moveDirection.y = _verticalVelocity;
             _moveDirection.z = forwardSpeed;
 
-            _controller.Move(_moveDirection * Time.deltaTime);
+            controller.Move(_moveDirection * Time.deltaTime);
         }
 
         private void ChangeLane(int dir)
         {
+            AudioManager.Instance.SwipeSound();
             _currentLane = Mathf.Clamp(_currentLane + dir, 0, 2);
         }
 
         private void TryJump()
         {
-            if (_controller.isGrounded)
+            if (controller.isGrounded)
             {
                 _verticalVelocity = jumpForce;
-                
-                if (animator != null)
-                    animator.SetTrigger("Jump");
             }
         }
 
@@ -151,46 +213,30 @@ namespace Models
             if (animator == null)
                 return;
 
-            bool running = forwardSpeed > 0f && !_isDead;
+            bool running = forwardSpeed > 0f && !isDead;
             animator.SetBool("Running", running);
-        }
-        
-        private void OnControllerColliderHit(ControllerColliderHit hit)
-        {
-            if (_isDead) 
-                return;
-
-            if (hit.gameObject.CompareTag("Obstacle"))
-            {
-                Die();
-            }
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            if(_isDead) 
-                return;
-
-            if (other.CompareTag("Coin") && other.TryGetComponent(out CoinModel coin))
-            {
-                coin.CollectedAnimation();
-                coin.AddCoin(); 
-            }
         }
 
         private void Die()
         {
-            _isDead = true;
+            isDead = true;
 
-            forwardSpeed = 0f;
-
-            _controller.enabled = false;
+            controller.enabled = false;
             
             if (animator != null)
             {
-                animator.SetBool("Running", false);
+                //animator.SetBool("Running", false);
                 animator.SetBool("Death", true);
+                OpenLoseScreen();
             }
+        }
+
+        private async void OpenLoseScreen()
+        {
+            await Task.Delay(1000);
+            
+            UIManager.Instance.GetScreen<GameScreen>().Timer.StopTimer();
+            UIManager.Instance.GetScreen<LoseScreen>().Setup(CollectedCoin);
         }
     }
 }

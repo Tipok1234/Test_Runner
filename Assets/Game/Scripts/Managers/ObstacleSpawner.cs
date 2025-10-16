@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using Models;
 using UnityEngine;
@@ -26,9 +25,6 @@ namespace Managers
         private void Start()
         {
             InitializePool();
-            
-            for (int i = 0; i < poolSize / 2; i++)
-                SpawnNext();
         }
 
         private void Update()
@@ -46,6 +42,18 @@ namespace Managers
                     obstacle.gameObject.SetActive(false);
                 }
             }
+        }
+        
+        public void ResetSpawner()
+        {
+            foreach (var obj in _pool)
+                obj.gameObject.SetActive(false);
+
+            _nextSpawnIndex = 0;
+            _lastSpawnZ = 0f;
+            
+            for (int i = 0; i < poolSize / 2; i++)
+                SpawnNext();
         }
 
         public void SetPlayerTransform(Transform playerTransform) => _playerTransform = playerTransform;

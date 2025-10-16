@@ -1,5 +1,6 @@
 using DataUtils;
 using DG.Tweening;
+using Managers;
 using UnityEngine;
 
 namespace Models
@@ -24,6 +25,8 @@ namespace Models
 
         public void CollectedAnimation()
         {
+            AudioManager.Instance.CoinSound();
+            
             _tween = transform.DOScale(scaleSize, collectedAnimationTime).SetEase(Ease.Linear).OnComplete(() =>
             {
                 _tween = transform.DOScale(Vector3.zero, collectedAnimationTime).SetEase(Ease.Linear).OnComplete(()

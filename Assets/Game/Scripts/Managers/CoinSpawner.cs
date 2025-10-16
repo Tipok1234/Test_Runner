@@ -41,6 +41,14 @@ namespace Managers
 
             DisableCoins();
         }
+        
+        public void ResetSpawner()
+        {
+            foreach (var obj in _coins)
+                obj.gameObject.SetActive(false);
+
+            _nextSpawnZ = 0f;
+        }
 
         public void SetupPlayerTransform(Transform playerTransform)
         {

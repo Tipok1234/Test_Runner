@@ -34,16 +34,6 @@ namespace DataUtils
             ChangedCurrencyAction?.Invoke();
         }
         
-        public void RemoveCoin(int coin)
-        {
-            var coins = ReadData<int>(CoinKey);
-
-            coins -= coin;
-            
-            WriteData(CoinKey,coins);
-            ChangedCurrencyAction?.Invoke();
-        }
-        
         public int GetCoin() => ReadData<int>(CoinKey);
 
         public void WriteData<T>(string key, T data)

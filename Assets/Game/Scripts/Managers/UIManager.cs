@@ -17,6 +17,11 @@ namespace Managers
             SetupScreen();
         }
 
+        private void Start()
+        {
+            OpenScreen<StartScreen>();
+        }
+
         public void OpenScreen<T>() where T : BaseScreen
         {
             T screen = GetScreen<T>();
